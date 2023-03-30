@@ -69,21 +69,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("I need an update on a group current tasks.", callback_data=str(UPDATE))],
         ]
 
-        if not hasattr(update.callback_query, "data"):
-            # vuol dire che l'utente non ha interagito con i tasti proposti da Resina, quindi non è stato mandato alcun
-            # messaggio da parte sua
-            message = await context.bot.send_message(actual_user.id,
-                                                     text="Hi, {}!\nMy name is Resina and I'm a digital Scambi staff"
-                                                     " member. I can do several things; please choose from the"
-                                                     " keyboard below. 😊".format(actual_user.first_name),
-                                                     reply_markup=InlineKeyboardMarkup(keyboard))
-            actual_user.last_mess.last_user_message = message
-
-        else:
-            await _reply(actual_user, context, text="Hi, {}!\nMy name is Resina and I'm a digital Scambi staff"
-                                                    " member. I can do several things; please choose from the"
-                                                    " keyboard below. 😊".format(actual_user.first_name),
-                         reply_markup=InlineKeyboardMarkup(keyboard))
+        await _reply(actual_user, context, text="Hi, {}!\nMy name is Resina and I'm a digital Scambi staff"
+                                                " member. I can do several things; please choose from the"
+                                                " keyboard below. 😊".format(actual_user.first_name),
+                     reply_markup=InlineKeyboardMarkup(keyboard))
 
     return outcome
 
@@ -112,7 +101,24 @@ async def user_signin_up(update: Update, context: CallbackContext):
 
     await dispatcher.dispatcher(actual_user, update, context, ISCRIZIONE)
     if update.callback_query.data == "cancel_payment_confirmation_request":
-        await start(update, context)
+        keyboard = [
+            [
+                InlineKeyboardButton("Sign me up!", callback_data=str(ISCRIZIONE)),
+                InlineKeyboardButton("I need to edit Pino.", callback_data=str(DBEDITING)),
+            ],
+            [InlineKeyboardButton("I need an update on a group current tasks.", callback_data=str(UPDATE))],
+        ]
+        data = {
+            "function": "_reply",
+            "params": {
+                "user": actual_user,
+                "text": "Hi, {}!\nMy name is Resina and I'm a digital Scambi staff"
+                        " member. I can do several things; please choose from the"
+                        " keyboard below. 😊".format(actual_user.first_name),
+                "reply_markup": InlineKeyboardMarkup(keyboard)
+            }
+        }
+        context.job_queue.run_once(utils.job_dispatcher, when=5, chat_id=actual_user.id, data=data)
     return
 
 
@@ -122,18 +128,10 @@ async def executive_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     persistence = PicklePersistence(filepath="pers.persistence")
-    app = Application.builder().token(variables.TOKEN).persistence(persistence=persistence).build()
+    # app = Application.builder().token(variables.TOKEN).persistence(persistence=persistence).build()
+    app = Application.builder().token(variables.TOKEN).build()
 
     # Definizione degli handler
-
-    # Handler che lancia la funzione iniziale
-    # app.add_handler(CommandHandler("start", start))
-    #
-    # # Handlers per la raccolta delle informazioni sull'utente
-    # app.add_handler(CallbackQueryHandler(start, pattern="full_name_correct"))
-    # app.add_handler(CallbackQueryHandler(start, pattern="full_name_not_correct"))
-    # app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
-
     fullname_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
@@ -165,20 +163,6 @@ def main():
     app.add_handler(CommandHandler("flagged", executive_handler))
     app.add_handler(CommandHandler("remove", executive_handler))
 
-    # inscription_handler = ConversationHandler(
-    #     entry_points=[CallbackQueryHandler(user_signin_up, pattern="^" + str(ISCRIZIONE) + "$")],
-    #     states={
-    #         ISCRIZIONE: [
-    #             CallbackQueryHandler(user_signin_up, pattern="user_payment_confirmed"),
-    #             CallbackQueryHandler(user_signin_up, pattern="user_payment_not_confirmed"),
-    #             CallbackQueryHandler(user_signin_up, pattern="admin_payment_confirmed"),
-    #             CallbackQueryHandler(user_signin_up, pattern="admin_payment_not_confirmed"),
-    #             CallbackQueryHandler(user_signin_up, pattern="payment_not_confirmed")
-    #         ]
-    #     },
-    #     fallbacks=[CallbackQueryHandler(start, pattern="start_over")]
-    # )
-    # app.add_handler(inscription_handler)
     app.run_polling()
 
 

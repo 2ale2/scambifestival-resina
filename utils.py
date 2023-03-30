@@ -1,4 +1,7 @@
 # Questo modulo contiene tutte le funzioni che non competono agli altri moduli. Leggere 'struttura.txt' per più info
+import logging
+
+import telegram.error
 from telegram import *
 from telegram.ext import *
 
@@ -7,21 +10,18 @@ import variables
 
 
 async def _reply(user: variables.UserInfos, context: CallbackContext, text: str,
-                 reply_markup: InlineKeyboardMarkup, parse_mode='MARKDOWN'):
+                 reply_markup: InlineKeyboardMarkup | None, parse_mode='MARKDOWN'):
     bot = context.bot
 
-    if "{}" in text:
-        message = await bot.editMessageText(text.format(user.first_name), chat_id=user.id,
-                                            message_id=user.last_mess.last_user_message.message_id,
-                                            parse_mode=parse_mode,
-                                            reply_markup=reply_markup)
-    else:
-        message = await bot.editMessageText(text, chat_id=user.id,
-                                            message_id=user.last_mess.last_user_message.message_id,
-                                            parse_mode=parse_mode, reply_markup=reply_markup)
-
-    user.last_mess.last_user_message = message
-    # context.bot_data[user.username] = user
+    try:
+        await bot.editMessageText(text.format(user.first_name), chat_id=user.id,
+                                  message_id=user.last_mess.last_user_message.message_id,
+                                  parse_mode=parse_mode,
+                                  reply_markup=reply_markup)
+    except telegram.error.TelegramError:
+        message = await bot.sendMessage(chat_id=user.id, text=text, parse_mode=parse_mode,
+                                        reply_markup=reply_markup)
+        user.last_mess.last_user_message = message
 
 
 async def data_gatherer(update: Update, context: ContextTypes.DEFAULT_TYPE, user: variables.UserInfos):
@@ -38,8 +38,8 @@ async def data_gatherer(update: Update, context: ContextTypes.DEFAULT_TYPE, user
             return ConversationHandler.END
         elif update.callback_query.data == "full_name_not_correct":
             # noinspection PyTypeChecker
-            await bot.editMessageText(text="Ok, no problem! Please tell me your correct full name.",
-                                      chat_id=user.id, message_id=user.last_mess.last_user_message.message_id)
+            await _reply(user=user, context=context, text="Ok, no problem! Please tell me your correct full name.",
+                         reply_markup=None)
             return 1
 
     elif update.message.text == "/start":
@@ -53,21 +53,18 @@ async def data_gatherer(update: Update, context: ContextTypes.DEFAULT_TYPE, user
                 ]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            message = await bot.sendMessage(chat_id=user.id, text="Hi! I'm _Resina_, the Scambi digital helper.\n"
-                                                                  "Before we can proceed, I need to know if I got"
-                                                                  " your correct full name.\n\nIs *" + full_name +
-                                                                  "* your actual full name?",
-                                            parse_mode='MARKDOWN', reply_markup=reply_markup)
-            user.last_mess.last_user_message = message
-            return 0
+            text = "Hi! I'm _Resina_, the Scambi digital helper.\nBefore we can proceed, I need to know if I got"\
+                   " your correct full name.\n\nIs *" + full_name + "* your actual full name?"
+            outcome = 0
         else:
-            message = await bot.send_message(chat_id=user.id, text="Hi! I'm _Resina_, the Scambi digital helper.\n\n"
-                                                                   "Before we can proceed, I need to know your full "
-                                                                   "name."
-                                                                   "\n\nCan you just write it down? 😊",
-                                             parse_mode='MARKDOWN')
-            user.last_mess.last_user_message = message
-            return 1
+            text = "Hi! I'm _Resina_, the Scambi digital helper.\n\n Before we can proceed, I need to know your full "\
+                   "name.\n\nCan you just write it down? 😊"
+            reply_markup = None
+            outcome = 1
+
+        await _reply(user=user, context=context, text=text,
+                     reply_markup=reply_markup)
+        return outcome
     else:
         if user.id == str(update.message.from_user.id):
             # L'utente ha indicato il suo nome, chiedo se è corretto
@@ -98,6 +95,26 @@ async def data_gatherer(update: Update, context: ContextTypes.DEFAULT_TYPE, user
 
     # context.bot_data[user.username] = user
     return
+
+
+async def job_dispatcher(context: CallbackContext):
+    # per chiamare una funzione in un Job con parametri aggiuntivi
+    # i parametri sono all'interno di context.job.data["params"] e hanno lo stesso nome dei parametri nella firma
+    # della funzione
+    function_name = context.job.data["function"]
+    params = context.job.data["params"]
+    if function_name == "_reply":
+        await _reply(user=params["user"], context=context, text=params["text"],
+                     reply_markup=params["reply_markup"])
+    elif function_name == "delete_message":
+        await delete_message(context, chat_id=params["chat_id"], message_id=params["message_id"])
+
+
+async def delete_message(context: CallbackContext, chat_id: int, message_id: int):
+    try:
+        await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+    except telegram.error.BadRequest:
+        logging.warning("Message to delete not found.")
 
 
 def get_user(update: Update, context: ContextTypes.DEFAULT_TYPE):

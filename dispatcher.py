@@ -1,8 +1,8 @@
-import time
 from datetime import datetime
 
 import telegram.error
 
+import utils
 from db_functions import *
 from utils import _reply
 
@@ -76,81 +76,94 @@ async def admin_payment_confirmation_request(status: str, update: Update, contex
         await bot.delete_message(chat_id=actual_user.id,
                                  message_id=actual_user.last_mess.last_user_message.message_id)
         sent = await db_functions.get_user_inscription_info(actual_user, context, "confirmation_request")
-        if sent is not None and not int(sent):
-            keyboard = [
-                [InlineKeyboardButton("Cancel ❌", callback_data="cancel_payment_confirmation_request")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            message = await bot.send_message(actual_user.id,
-                                             text="Got it! Before we can proceed, I need a"
-                                                  " confirmation from the executive staff.\n\n"
-                                                  "📩  `Confirmation request sent. Awaiting the answer..`\n\n"
-                                                  "⏳ Please note that this can take a while depending on when "
-                                                  "a staff member will answer to the Telegram confirmation "
-                                                  "message.\n\n💡 Meanwhile you can contact someone from the "
-                                                  "Scambi team to be confirmed sooner.", reply_markup=reply_markup,
-                                             parse_mode='MARKDOWN')
-            actual_user.last_mess.last_user_message = message
 
-        elif sent is not None and int(sent) > 0:
-            request_time = await db_functions.get_user_inscription_info(actual_user, context, "request_date")
-            if (datetime.now() - datetime.strptime(request_time, "%Y-%m-%d %H:%M:%S")).days == 0:
-                message = await bot.send_message(chat_id=actual_user.id,
-                                                 text="ℹ️ You already send a confirmation request less than "
-                                                      "24 hours ago. Please wait until the staff answer your request "
-                                                      "or come back later.\n\n💡 You can also contact someone"
-                                                      "from the Scambi team to be confirmed sooner.\n\nSend /start to "
-                                                      "go back to the main menu.")
-                # potrei valutare di aggiungere un tasto che cancelli questo messaggio
-            else:
+        if sent is not None:
+            if sent == "<null>" or not int(sent):
                 keyboard = [
-                    [InlineKeyboardButton("Wait ⏱", callback_data="user_awaiting_answer")],
-                    [InlineKeyboardButton("Send a new request 📩", callback_data="user_send_another_request")]
+                    [InlineKeyboardButton("Cancel ❌", callback_data="cancel_payment_confirmation_request")]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                message = await bot.send_message(chat_id=actual_user.id,
-                                                 text="ℹ️ You already send a confirmation request in the past"
-                                                      " which has not been answered yet.\n\nIf some time is "
-                                                      "passed since you made that request, I suggest to "
-                                                      "delete the previous one and send a new one; "
-                                                      "otherwise you can wait for the first request to be answered.",
-                                                 reply_markup=reply_markup)
-            actual_user.last_mess.last_user_message = message
-            return
-        elif sent is not None and int(sent) == -1:
-            request_time = await db_functions.get_user_inscription_info(actual_user, context, "request_date")
-            if (datetime.now() - datetime.strptime(request_time, "%Y-%m-%d %H:%M:%S")).days == 0:
-                keyboard = [
-                    [InlineKeyboardButton("Contact the staff", url="https://t.me/AleLntr")]
-                ]
-                message = await bot.send_message(chat_id=actual_user.id,
-                                                 text="ℹ️ You already send a confirmation request in the past"
-                                                      " which has been deleted. However, you cannot make another one "
-                                                      "before 24 hours from the previuos request. Please come back "
-                                                      "later or contact the staff.\n\nSend /start to go back to the "
-                                                      "main menu.",
-                                                 reply_markup=InlineKeyboardMarkup(keyboard))
-            else:
-                keyboard = [
-                    [InlineKeyboardButton("Send a new request 📩", callback_data="user_send_another_request")]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                message = await bot.send_message(chat_id=actual_user.id,
-                                                 text="ℹ️ You already send a confirmation request in the past"
-                                                      " which has been deleted.\n\nI suggest to send a new one.",
-                                                 reply_markup=reply_markup)
-            actual_user.last_mess.last_user_message = message
-            return
-        else:
-            message = await bot.send_message(chat_id=actual_user.id, text="❌ *ERROR*\n\nAn error occurred while "
-                                                                          "trying to find if you already made the "
-                                                                          "confirmation request.\n\n`A notification "
-                                                                          "has been sent to the staff.`",
-                                             parse_mode="MARKDOWN")
-            actual_user.last_mess.last_user_message = message
-            return
-        # Chiedo la conferma al direttivo (se la ho già fatta elimino il messaggio e lo riscrivo). UPDATE: qualora
-        # la richiesta sia stata già mandata, non ne devo mandare un'altra, visto quallo cui sto lavorando ora
+                message = await bot.send_message(actual_user.id,
+                                                 text="Got it! Before we can proceed, I need a"
+                                                      " confirmation from the executive staff.\n\n"
+                                                      "📩  `Confirmation request sent. Awaiting the answer..`\n\n"
+                                                      "⏳ Please note that this can take a while depending on when "
+                                                      "a staff member will answer to the Telegram confirmation "
+                                                      "message.\n\n💡 Meanwhile you can contact someone from the "
+                                                      "Scambi team to be confirmed sooner.", reply_markup=reply_markup,
+                                                 parse_mode='MARKDOWN')
+                actual_user.last_mess.last_user_message = message
+
+            elif int(sent) > 1:
+
+                request_time = await db_functions.get_user_inscription_info(actual_user, context, "request_date")
+
+                if (datetime.now() - datetime.strptime(request_time, "%Y-%m-%d %H:%M:%S")).days == 0:
+                    message = await bot.send_message(chat_id=actual_user.id,
+                                                     text="ℹ️ You already send a confirmation request less than "
+                                                          "24 hours ago. Please wait until the staff answer your"
+                                                          " request or come back later.\n\n💡 You can also contact"
+                                                          " someone from the Scambi team to be confirmed sooner."
+                                                          "\n\nSend /start to go back to the main menu.")
+                    # potrei valutare di aggiungere un tasto che cancelli questo messaggio
+
+                else:
+                    keyboard = [
+                        [InlineKeyboardButton("Wait ⏱", callback_data="user_awaiting_answer")],
+                        [InlineKeyboardButton("Send a new request 📩", callback_data="user_send_another_request")]
+                    ]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    message = await bot.send_message(chat_id=actual_user.id,
+                                                     text="ℹ️ You already send a confirmation request in the past"
+                                                          " which has not been answered yet.\n\nIf some time is "
+                                                          "passed since you made that request, I suggest to delete "
+                                                          "the previous one and send a new one; otherwise "
+                                                          "you can wait for the first request to be answered.",
+                                                     reply_markup=reply_markup)
+                actual_user.last_mess.last_user_message = message
+
+                return
+
+            elif int(sent) == -1:
+
+                request_time = await db_functions.get_user_inscription_info(actual_user, context, "request_date")
+
+                if (datetime.now() - datetime.strptime(request_time, "%Y-%m-%d %H:%M:%S")).days == 0:
+                    keyboard = [
+                        [InlineKeyboardButton("Contact the staff", url="https://t.me/AleLntr")]
+                    ]
+                    message = await bot.send_message(chat_id=actual_user.id,
+                                                     text="ℹ️ You already send a confirmation request in the past "
+                                                          "which has been deleted. However, you cannot make "
+                                                          "another request before 24 hours from the previuos one. "
+                                                          "Please come back later or contact the staff."
+                                                          "\n\nSend /start to go back to the main menu.",
+                                                     reply_markup=InlineKeyboardMarkup(keyboard))
+
+                else:
+                    keyboard = [
+                        [InlineKeyboardButton("Send a new request 📩", callback_data="user_send_another_request")]
+                    ]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    message = await bot.send_message(chat_id=actual_user.id,
+                                                     text="ℹ️ You already send a confirmation request in the past"
+                                                          " which has been deleted.\n\nI suggest to send a new one.",
+                                                     reply_markup=reply_markup)
+                actual_user.last_mess.last_user_message = message
+
+                return
+
+            elif int(sent) != 1:
+                message = await bot.send_message(chat_id=actual_user.id, text="❌ *ERROR*\n\nAn error occurred while "
+                                                                              "trying to find if you already made the "
+                                                                              "confirmation request.\n\n`A notification"
+                                                                              " has been sent to the staff.`",
+                                                 parse_mode="MARKDOWN")
+                actual_user.last_mess.last_user_message = message
+
+                return
+
+        # Codice eseguito se sent == 0 o sent == 1
         keyboard = [
             [
                 InlineKeyboardButton("✅ Fee verified", callback_data="admin_payment_confirmed " + actual_user.id),
@@ -166,10 +179,12 @@ async def admin_payment_confirmation_request(status: str, update: Update, contex
         message = await bot.send_message(variables.CHAT_ID, text=text,
                                          reply_markup=reply_markup, parse_mode='MARKDOWN')
         await db_functions.update_subscription_user_status("user_payment_confirmed", str(message.id),
-                                                           str(message.date)[:len(str(message.date))-6],
+                                                           str(message.date)[:len(str(message.date)) - 6],
                                                            context, actual_user)
         actual_user.last_mess.last_group_message = message
-        actual_user.last_mess.first_group_message = message
+        if sent is not None and sent == "<null>":
+            actual_user.last_mess.first_group_message = message
+        return
 
     elif status == "user_awaiting_answer":
         try:
@@ -209,12 +224,19 @@ async def admin_payment_confirmation_request(status: str, update: Update, contex
         # questo codice non va bene perché devo sapere qual è l'id del messaggio di richiesta, del resto non mi frega
 
     elif status == "user_send_another_request":
-        res = await db_functions.get_user_inscription_info(actual_user, context, "confirmation_request")
-        await db_functions.update_subscription_user_status("user_payment_confirmed", str(-1), "", context, actual_user)
+        res = int(await db_functions.get_user_inscription_info(actual_user, context, "confirmation_request"))
         await bot.editMessageText(text="OK! I'll send a new request.", chat_id=actual_user.id,
                                   message_id=actual_user.last_mess.last_user_message.message_id)
-        await bot.delete_message(chat_id=variables.CHAT_ID,
-                                 message_id=actual_user.last_mess.last_group_message.message_id)
+        if res > 0:
+            try:
+                await bot.delete_message(chat_id=variables.CHAT_ID, message_id=res)
+            except error.BadRequest:
+                logging.warning("Message to delete not found. Skipping this step...")
+
+            await db_functions.update_subscription_user_status("user_payment_confirmed", str(1), "", context,
+                                                               actual_user)
+
+        # invio la richiesta
         await admin_payment_confirmation_request("user_payment_confirmed", update, context, actual_user)
 
         keyboard = [
@@ -336,37 +358,44 @@ async def user_payment_not_confirmed(actual_user: variables.UserInfos, context: 
 
 async def cancel_payment_confirmation_request(context: CallbackContext, actual_user: variables.UserInfos):
     bot = context.bot
+    group_message = actual_user.last_mess.last_group_message.message_id
+    user_message = actual_user.last_mess.last_user_message.message_id
     if await user_in_db(context, actual_user, "FLAGGED_USERS", "confirmation_request_cancelled"):
         keyboard = [
             [
-                InlineKeyboardButton("🔒 Restrict user", callback_data="restrict " + actual_user.id),
-                InlineKeyboardButton("🔓 Do not restrict", callback_data="not_restrict " + actual_user.id)
+                InlineKeyboardButton("🔒 Restrict user", callback_data="restrict send_requests " + actual_user.id),
+                InlineKeyboardButton("🔓 Do not restrict", callback_data="not_restrict send_requests " + actual_user.id)
             ]
         ]
         await bot.editMessageText(text="❌️ " + actual_user.first_name + " (" + user_chat_link(actual_user) +
                                        ") cancelled the request.\n\nℹ️ `This user already cancelled the request"
                                        " in the past. Do you want me to restrict " + actual_user.name + "?`",
                                   chat_id=variables.CHAT_ID,
-                                  message_id=actual_user.last_mess.last_group_message.message_id,
+                                  message_id=group_message,
                                   reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='MARKDOWN')
         await bot.editMessageText(text="ℹ️ The confirmation payment request has been canceled.\n\n"
                                        "`This message will self delete within 5 seconds.`", chat_id=actual_user.id,
-                                  message_id=actual_user.last_mess.last_user_message.message_id,
+                                  message_id=user_message,
                                   parse_mode='MARKDOWN')
-        time.sleep(5)
+
     else:
         await bot.editMessageText(text="❌️ " + actual_user.first_name + " (" + user_chat_link(actual_user) +
-                                       ") cancelled the request.\n\nThis message will self delete within 5 seconds.",
+                                       ") cancelled the request.\n\n`This message will self delete within 5 seconds.`",
                                   chat_id=variables.CHAT_ID,
-                                  message_id=actual_user.last_mess.last_group_message.message_id,
+                                  message_id=group_message,
                                   parse_mode='MARKDOWN')
         await bot.editMessageText(text="ℹ️ The confirmation payment request has been canceled.\n\n"
                                        "`This message will self delete within 5 seconds.`", chat_id=actual_user.id,
-                                  message_id=actual_user.last_mess.last_user_message.message_id,
+                                  message_id=user_message,
                                   parse_mode='MARKDOWN')
-        time.sleep(5)
-        await bot.delete_message(chat_id=variables.CHAT_ID,
-                                 message_id=actual_user.last_mess.last_group_message.message_id)
+        data = {
+            "function": "delete_message",
+            "params": {
+                "chat_id": variables.CHAT_ID,
+                "message_id": actual_user.last_mess.last_group_message.message_id
+            }
+        }
+        context.job_queue.run_once(utils.job_dispatcher, when=5.0, data=data)
         actual_user.last_mess.last_group_message = actual_user.last_mess.first_group_message
     actual_user.checks.signin_up_note_check = False
 

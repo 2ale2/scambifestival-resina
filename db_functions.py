@@ -26,7 +26,7 @@ async def user_in_db(context: CallbackContext, user: variables.UserInfos, table_
     c = conn.cursor
     if table_name == "FLAGGED_USERS":
         query = "SELECT user_id FROM " + table_name + " WHERE user_id = '" + str(user.id) \
-                + "' AND action_performed =' " + action_performed + "'"
+                + "' AND action_performed = '" + action_performed + "'"
     else:
         query = "SELECT user_id FROM " + table_name + " WHERE user_id = '" + str(user.id) + "'"
     try:
@@ -44,7 +44,7 @@ async def user_in_db(context: CallbackContext, user: variables.UserInfos, table_
     return res
 
 
-async def add_user(context: CallbackContext, user: variables.UserInfos, table_name: str, action_performed: str | None):
+async def add_user(context: CallbackContext, user: variables.UserInfos, table_name: str, data: str | None):
     conn = connect()
     c = conn.cursor
     if table_name == "INSCRIPTION_USERS_STATUS":
@@ -52,7 +52,7 @@ async def add_user(context: CallbackContext, user: variables.UserInfos, table_na
         # id_utente, stato, id_richiesta_conferma, data_richiesta
 
     elif table_name == "FLAGGED_USERS":
-        values = "('" + user.id + "', '" + action_performed + "')"
+        values = "('" + user.id + "', '" + data + "')"
 
     elif table_name == "USERS_INFOS":
         if user.username is not None:
