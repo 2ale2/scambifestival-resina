@@ -104,10 +104,11 @@ async def update_subscription_user_status(new_status: str, request_sent: str, ti
         c.execute(
             "UPDATE INSCRIPTION_USERS_STATUS SET status = '" + new_status + "' WHERE user_id = '" + user.id + "'"
         )
-        c.execute(
-            "UPDATE INSCRIPTION_USERS_STATUS SET confirmation_request = '" + str(request_sent) + "' " +
-            "WHERE user_id = '" + user.id + "'"
-        )
+        if request_sent != "":
+            c.execute(
+                "UPDATE INSCRIPTION_USERS_STATUS SET confirmation_request = '" + str(request_sent) + "' " +
+                "WHERE user_id = '" + user.id + "'"
+            )
         if time != "":
             c.execute(
                 "UPDATE INSCRIPTION_USERS_STATUS SET request_date = '" + time + "' WHERE user_id = '" + user.id + "'"

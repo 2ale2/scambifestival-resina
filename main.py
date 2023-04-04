@@ -43,7 +43,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.effective_chat.type != telegram.Chat.PRIVATE:
             return
 
+    if hasattr(update.message, "text") and update.message.text == "/start":
+        await context.bot.delete_message(chat_id=update.message.from_user.id, message_id=update.message.id)
+
     actual_user = utils.get_user(update, context)
+
+    # this check is useless unless if the persistence file is corrupted or not found
     if str(actual_user.id) not in context.bot_data:
         res = await db_functions.user_in_db(context, actual_user, "USERS_INFOS", None)
         if res is not None and res.fetchall().__len__() != 0:
