@@ -73,9 +73,7 @@ async def admin_payment_confirmation_request(status: str, update: Update, contex
         from_chat = str(update.callback_query.message.chat_id)
         sent = await db_functions.get_user_inscription_info(actual_user, context, "confirmation_request")
 
-        if from_chat != variables.CHAT_ID:
-            # Avviso l'utente che sto chiedendo conferma al direttivo
-            # noinspection PyTypeChecker
+        if from_chat != variables.CHAT_ID:  # user upgraded his status
             await bot.delete_message(chat_id=actual_user.id,
                                      message_id=actual_user.last_mess.last_user_message.message_id)
             if sent is not None:
@@ -166,7 +164,7 @@ async def admin_payment_confirmation_request(status: str, update: Update, contex
 
                     return
 
-        # Codice eseguito se sent == 0 o sent == 1
+        # executed if sent == 0 or sent == 1 or if the executive group upgraded the status of the user
         keyboard = [
             [
                 InlineKeyboardButton("✅ Fee verified", callback_data="admin_payment_confirmed " + actual_user.id),
